@@ -89,7 +89,7 @@ fix — I'll make the changes myself.
 - [x] Monorepo structure created (`/client`, `/server`)
 - [x] PostgreSQL schema with `users`, `auctions`, `bids`, `payments` tables — hosted on Supabase (Postgres 17), loaded and verified; SSL required on the pg pool
 - [x] `POST /api/auth/register` works — bcrypt hashing, parameterized insert, duplicate-email → 409, returns JWT + user object
-- [ ] `POST /api/auth/login` returns a JWT
+- [x] `POST /api/auth/login` returns a JWT
 - [x] Auth middleware (`requireAuth`) protects routes — verifies JWT signature, attaches `req.user`; verified end-to-end against `GET /api/auth/me` (valid → 200, missing/tampered/wrong-scheme → 401)
 - [x] `.env.example` committed, `.env` gitignored (`.env` lives in `server/`)
 
