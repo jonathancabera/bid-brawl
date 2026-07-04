@@ -135,7 +135,36 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {});
+router.get('/:id', async (req, res) => {
+  const requested_auction_id = req.params.id;
+  const id = Number(requested_auction_id);
+
+  if (Number.isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'invalid auction id' });
+  }
+
+  try {
+    const result = await pool.query<AuctionRow & { highest_bid: string }>(
+      `SELECT a.*,
+            COALESCE(MAX(b.amount), a.starting_price) AS highest_bid
+     FROM auctions a
+     LEFT JOIN bids b ON b.auction_id = a.auction_id
+     WHERE a.auction_id = $1
+       AND (a.status <> 'draft')
+     GROUP BY a.auction_id`,
+      [id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'auction not found' });
+    }
+
+    return res.status(200).json({ auction: result.rows[0] });
+  } catch (err: any) {
+    console.error('auction error:', err);
+    return res.status(500).json({ error: 'internal server error' });
+  }
+});
 
 router.put('/:id', requireAuth, async (req, res) => {});
 
