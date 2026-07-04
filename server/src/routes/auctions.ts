@@ -53,7 +53,7 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(201).json({ auction: result.rows[0] });
   } catch (err: any) {
     if (err?.code === '23514') {
-      return res.status(400).json({ error: 'bad input' });
+      return res.status(400).json({ error: 'invalid field value' });
     }
     console.error('auction error:', err);
     return res.status(500).json({ error: 'internal server error' });
@@ -71,7 +71,7 @@ router.get('/', async (req, res) => {
   const missingEndTime = after_end_time === undefined;
   const missingId = after_id === undefined;
   if (missingEndTime !== missingId) {
-    return res.status(400).json({ error: 'one or more fields missing' });
+    return res.status(400).json({ error: 'after_id and after_end_time must be provided together' });
   }
 
   let parsedAfterId: number | undefined;
@@ -166,7 +166,80 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, async (req, res) => {});
+router.put('/:id', requireAuth, async (req, res) => {
+  const update_auction_id = req.params.id;
+  const id = Number(update_auction_id);
+  if (Number.isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'invalid auction id' });
+  }
+
+  const body = req.body as UpdateAuctionBody;
+  const { start_time, end_time } = body;
+
+  const { user_id } = (req as AuthRequest).user;
+  if (start_time && new Date(start_time) < new Date()) {
+    return res.status(400).json({ error: 'invalid auction start time' });
+  }
+  if (start_time && end_time && new Date(end_time) <= new Date(start_time)) {
+    return res.status(400).json({ error: 'invalid auction end time' });
+  }
+
+  try {
+    const result = await pool.query<AuctionRow>(
+      `SELECT seller_id, status FROM auctions WHERE auction_id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'auction not found' });
+    }
+
+    const { seller_id, status } = result.rows[0];
+    if (seller_id !== user_id) {
+      return res.status(403).json({ error: 'you do not own this auction' });
+    }
+    if (status !== 'draft') {
+      return res.status(409).json({ error: 'this auction is live and cannot be edited' });
+    }
+
+    const editable_fields = [
+      'item_name',
+      'item_description',
+      'item_image',
+      'starting_price',
+      'reserve_price',
+      'start_time',
+      'end_time',
+    ] as const;
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+
+    for (const col of editable_fields) {
+      if (body[col] !== undefined) {
+        values.push(body[col]);
+        fields.push(`${col} = $${values.length}`);
+      }
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'no fields to update' });
+    }
+
+    values.push(id);
+    const updated = await pool.query<AuctionRow>(
+      `UPDATE auctions SET ${fields.join(', ')} WHERE auction_id = $${values.length} RETURNING *`,
+      values,
+    );
+
+    return res.status(200).json({ auction: updated.rows[0] });
+  } catch (err: any) {
+    if (err?.code === '23514') {
+      return res.status(400).json({ error: 'invalid field value' });
+    }
+    console.error('auction error:', err);
+    return res.status(500).json({ error: 'internal server error' });
+  }
+});
 
 router.delete('/:id', requireAuth, async (req, res) => {});
 
