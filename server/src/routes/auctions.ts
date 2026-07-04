@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db';
 import { CreateAuctionBody, UpdateAuctionBody, AuctionRow } from '../types/auctions';
+import { AuctionListItem } from '../types/auctions';
 import { requireAuth } from '../middleware/auth';
 import { AuthRequest } from '../types/auth';
 
@@ -59,7 +60,80 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {});
+router.get('/', async (req, res) => {
+  const { after_end_time, after_id, limit } = req.query;
+
+  const pageSize = Number(limit ?? 20);
+  if (Number.isNaN(pageSize) || pageSize <= 0) {
+    return res.status(400).json({ error: 'invalid limit' });
+  }
+
+  const missingEndTime = after_end_time === undefined;
+  const missingId = after_id === undefined;
+  if (missingEndTime !== missingId) {
+    return res.status(400).json({ error: 'one or more fields missing' });
+  }
+
+  let parsedAfterId: number | undefined;
+  const hasCursor = !missingEndTime;
+  if (hasCursor) {
+    parsedAfterId = Number(after_id);
+    if (Number.isNaN(parsedAfterId) || parsedAfterId <= 0) {
+      return res.status(400).json({ error: 'invalid after id' });
+    }
+
+    const parsedTime = new Date(after_end_time as string).getTime();
+    if (Number.isNaN(parsedTime)) {
+      return res.status(400).json({ error: 'invalid after end time' });
+    }
+  }
+
+  try {
+    let result;
+
+    if (hasCursor) {
+      result = await pool.query<AuctionListItem>(
+        `SELECT a.auction_id, a.item_name, a.item_image, a.end_time,
+            COALESCE(MAX(b.amount), a.starting_price) AS highest_bid
+     FROM auctions a
+     LEFT JOIN bids b ON b.auction_id = a.auction_id
+     WHERE a.status = 'active'
+       AND (a.end_time, a.auction_id) > ($1, $2)
+     GROUP BY a.auction_id
+     ORDER BY a.end_time ASC, a.auction_id ASC
+     LIMIT $3`,
+        [after_end_time, parsedAfterId, pageSize + 1],
+      );
+    } else {
+      result = await pool.query<AuctionListItem>(
+        `SELECT a.auction_id, a.item_name, a.item_image, a.end_time,
+            COALESCE(MAX(b.amount), a.starting_price) AS highest_bid
+     FROM auctions a
+     LEFT JOIN bids b ON b.auction_id = a.auction_id
+     WHERE a.status = 'active'
+     GROUP BY a.auction_id
+     ORDER BY a.end_time ASC, a.auction_id ASC
+     LIMIT $1`,
+        [pageSize + 1],
+      );
+    }
+
+    const hasMore = result.rows.length > pageSize;
+    const auctions = hasMore ? result.rows.slice(0, pageSize) : result.rows;
+    const lastRow = auctions[auctions.length - 1];
+    const next_cursor = hasMore
+      ? {
+          end_time: lastRow.end_time,
+          auction_id: lastRow.auction_id,
+        }
+      : null;
+
+    return res.status(200).json({ auctions, next_cursor });
+  } catch (err: any) {
+    console.error('auction error:', err);
+    return res.status(500).json({ error: 'internal server error' });
+  }
+});
 
 router.get('/:id', async (req, res) => {});
 
