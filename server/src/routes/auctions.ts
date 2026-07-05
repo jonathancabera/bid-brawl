@@ -241,6 +241,42 @@ router.put('/:id', requireAuth, async (req, res) => {
   }
 });
 
-router.delete('/:id', requireAuth, async (req, res) => {});
+router.delete('/:id', requireAuth, async (req, res) => {
+  const update_auction_id = req.params.id;
+  const id = Number(update_auction_id);
+  if (Number.isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'invalid auction id' });
+  }
+
+  const { user_id } = (req as AuthRequest).user;
+
+  try {
+    const result = await pool.query<AuctionRow>(
+      `SELECT seller_id, status FROM auctions WHERE auction_id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'auction not found' });
+    }
+
+    const { seller_id, status } = result.rows[0];
+    if (seller_id !== user_id) {
+      return res.status(403).json({ error: 'you do not own this auction' });
+    }
+    if (status !== 'draft') {
+      return res.status(409).json({ error: 'this auction is live and cannot be deleted' });
+    }
+
+    const updated = await pool.query<AuctionRow>(
+      `UPDATE auctions SET status = 'cancelled' WHERE auction_id = $1 RETURNING *`,
+      [id],
+    );
+
+    return res.status(200).json({ auction: updated.rows[0] });
+  } catch (err: any) {
+    console.error('auction error:', err);
+    return res.status(500).json({ error: 'internal server error' });
+  }
+});
 
 export default router;
