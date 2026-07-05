@@ -21,7 +21,7 @@ export interface AuctionRow {
   current_price: string | null;
   start_time: string | null;
   end_time: string;
-  status: 'draft' | 'active' | 'closed';
+  status: 'draft' | 'active' | 'closed' | 'cancelled';
   winner_id: number | null;
 }
 

@@ -19,7 +19,7 @@ CREATE TABLE auctions (
     current_price NUMERIC(12, 2) CHECK(current_price >= 0),
     start_time TIMESTAMPTZ NOT NULL,
     end_time TIMESTAMPTZ NOT NULL,
-    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'closed')),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'closed', 'cancelled')),
     winner_id INT REFERENCES users(user_id)
 );
 
