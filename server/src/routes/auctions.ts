@@ -60,6 +60,56 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+router.post('/:id/publish', requireAuth, async (req, res) => {
+  const auction_id = req.params.id;
+  const id = Number(auction_id);
+
+  if (Number.isNaN(id) || id <= 0) {
+    return res.status(400).json({ error: 'invalid auction id' });
+  }
+
+  const { user_id } = (req as AuthRequest).user;
+
+  try {
+    const result = await pool.query(
+      `SELECT seller_id, status, start_time, end_time FROM auctions WHERE auction_id = $1`,
+      [id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'auction not found' });
+    }
+
+    const { seller_id, status, end_time } = result.rows[0];
+    if (seller_id !== user_id) {
+      return res.status(403).json({ error: 'you do not own this auction' });
+    }
+    if (status === 'active') {
+      return res.status(409).json({ error: 'auction already published' });
+    }
+    if (status === 'closed') {
+      return res
+        .status(409)
+        .json({ error: 'auction has been closed, you cannot re-publish this auction' });
+    }
+    if (status === 'cancelled') {
+      return res.status(409).json({ error: 'auction has been cancelled, you cannot publish' });
+    }
+    if (new Date(end_time) <= new Date()) {
+      return res.status(400).json({ error: 'auction end time has passed' });
+    }
+
+    const updated = await pool.query(
+      `UPDATE auctions SET status = 'active' WHERE auction_id = $1 RETURNING *`,
+      [id],
+    );
+    return res.status(200).json({ auction: updated.rows[0] });
+  } catch (err: any) {
+    console.error('auction error:', err);
+    return res.status(500).json({ error: 'internal server error' });
+  }
+});
+
 router.get('/', async (req, res) => {
   const { after_end_time, after_id, limit } = req.query;
 
