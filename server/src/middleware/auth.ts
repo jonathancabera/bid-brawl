@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AuthRequest} from '../types/auth';
-// TODO: verify JWT from Authorization header and attach decoded payload to req.user
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   try {
