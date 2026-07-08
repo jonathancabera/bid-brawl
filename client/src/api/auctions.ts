@@ -1,5 +1,5 @@
 import { request } from './client';
-import type { AuctionCursor, AuctionListResponse } from '../types/auctions';
+import type { AuctionCursor, AuctionListResponse, AuctionDetailResponse } from '../types/auctions';
 
 export function getAuctions(cursor?: AuctionCursor): Promise<AuctionListResponse> {
   const path = '/api/auctions';
@@ -14,4 +14,8 @@ export function getAuctions(cursor?: AuctionCursor): Promise<AuctionListResponse
 
   const finalPath = `${path}?${params.toString()}`;
   return request<AuctionListResponse>(finalPath);
+}
+
+export function getAuction(id: number): Promise<AuctionDetailResponse> {
+  return request<AuctionDetailResponse>(`/api/auctions/${id}`);
 }

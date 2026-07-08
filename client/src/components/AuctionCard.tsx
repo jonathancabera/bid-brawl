@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { AuctionListItem } from '../types/auctions';
+import AuctionTimeCountdown from './AuctionTimeCountdown';
 
 const placeholder = '/placeholder.png';
 
@@ -15,7 +16,7 @@ export default function AuctionCard({ auction }: { auction: AuctionListItem }) {
         {auction.item_name}
         <img src={auction.item_image ?? placeholder} alt={auction.item_name} />
         {priceFormatter.format(Number(auction.highest_bid))}
-        {auction.end_time}
+        <AuctionTimeCountdown endTime={auction.end_time} />
       </div>
     </Link>
   );
