@@ -1,5 +1,11 @@
 import { request } from './client';
-import type { AuctionCursor, AuctionListResponse, AuctionDetailResponse } from '../types/auctions';
+import type {
+  AuctionCursor,
+  AuctionListResponse,
+  AuctionDetailResponse,
+  CreateAuctionBody,
+  AuctionResponse,
+} from '../types/auctions';
 
 export function getAuctions(cursor?: AuctionCursor): Promise<AuctionListResponse> {
   const path = '/api/auctions';
@@ -18,4 +24,17 @@ export function getAuctions(cursor?: AuctionCursor): Promise<AuctionListResponse
 
 export function getAuction(id: number): Promise<AuctionDetailResponse> {
   return request<AuctionDetailResponse>(`/api/auctions/${id}`);
+}
+
+export function createAuction(body: CreateAuctionBody): Promise<AuctionResponse> {
+  return request<AuctionResponse>('/api/auctions', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+}
+
+export function publishAuction(id: number): Promise<AuctionResponse> {
+  return request<AuctionResponse>(`/api/auctions/${id}/publish`, {
+    method: 'POST',
+  });
 }
