@@ -1,0 +1,14 @@
+services:
+  postgres-test:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: auction_test
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d auction_test']
+      interval: 2s
+      timeout: 3s
+      retries: 15
