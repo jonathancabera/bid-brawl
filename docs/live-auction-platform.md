@@ -151,11 +151,12 @@ Point out issues and explain the concept behind each — don't rewrite the code 
 
 ### Checklist
 
-- [ ] Auction CRUD routes working
-- [ ] Image upload to S3 working
-- [ ] Auction list page renders
-- [ ] Auction detail page shows current highest bid
-- [ ] Countdown timer showing time remaining
+- [x] Auction CRUD routes working — create, list (cursor pagination), detail (with highest bid), update, soft-delete, and `POST /:id/publish` (draft→active). Design: **biddable-now** (`active` = live immediately, `start_time` is display metadata)
+- [ ] Image upload to S3 working — deferred, pending other decisions
+- [x] Auction list page renders — cursor pagination, load-more with in-flight guard + inline error, loading/error/empty states
+- [x] Auction detail page shows current highest bid — id-keyed fetch with cancellation flag, loading/error/not-found states
+- [x] Countdown timer showing time remaining — `AuctionTimeCountdown` (self-correcting interval + cleanup, `Intl.DurationFormat`), reused on list card and detail
+- [x] CreateAuction form — login flow + create→publish with retry-publish guard, `datetime-local`→ISO, thin client validation. First authed client write. Verified end-to-end.
 
 ---
 
