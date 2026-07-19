@@ -14,6 +14,7 @@ const priceFormatter = new Intl.NumberFormat('en-US', {
 
 export default function AuctionDetail() {
   const { id } = useParams<{ id: string }>();
+
   const [auction, setAuction] = useState<AuctionDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
