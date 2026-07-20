@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { getAuction } from '../api/auctions';
 import type { AuctionDetail as AuctionDetailData } from '../types/auctions';
 import { ApiError } from '../api/client';
 import AuctionTimeCountdown from '../components/AuctionTimeCountdown';
+import BidForm from '../components/BidForm';
 
 const placeholder = '/placeholder.png';
 
@@ -18,6 +19,19 @@ export default function AuctionDetail() {
   const [auction, setAuction] = useState<AuctionDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const res = await getAuction(Number(id));
+      setAuction(res.auction);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message);
+      } else {
+        setError('something went wrong');
+      }
+    }
+  }, [id]);
 
   useEffect(() => {
     let ignore = false;
@@ -66,6 +80,7 @@ export default function AuctionDetail() {
       <p>
         Ends in: <AuctionTimeCountdown endTime={auction.end_time} />
       </p>
+      <BidForm auction={auction} onBidPlaced={reload} />
     </div>
   );
 }
