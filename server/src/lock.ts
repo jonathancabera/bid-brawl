@@ -69,3 +69,12 @@ export async function withAuctionLock<T>(auctionId: number, fn: () => Promise<T>
     });
   }
 }
+
+export async function closeLockClient(): Promise<void> {
+  if (!clientPromise) {
+    return;
+  }
+  const client = await clientPromise;
+  clientPromise = null;
+  await client.quit();
+}
