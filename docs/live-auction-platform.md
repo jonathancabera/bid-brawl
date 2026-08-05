@@ -218,11 +218,11 @@ Explain the issues — don't rewrite the code.
 
 ### Checklist
 
-- [ ] `POST /api/auctions/:id/bids` validates and records bids
-- [ ] Redis lock prevents duplicate winning bids
-- [ ] Bid history endpoint works
-- [ ] BidForm submits and shows errors (bid too low, auction ended, etc.)
-- [ ] Lock is released in all code paths including failures
+- [x] `POST /api/auctions/:id/bids` validates and records bids — one `SELECT … FOR UPDATE` transaction (bid insert + `current_price` update)
+- [x] Redis lock prevents duplicate winning bids — `SET NX PX` fronts the DB transaction; verified by a 20-way concurrency test (exactly one winner)
+- [x] Bid history endpoint works — `GET /api/auctions/:id/bids`
+- [x] BidForm submits and shows errors (bid too low, auction ended, etc.)
+- [x] Lock is released in all code paths including failures — compare-and-delete Lua in `finally`, TTL as the crash backstop
 
 ---
 
