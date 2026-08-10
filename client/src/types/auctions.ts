@@ -45,7 +45,7 @@ export interface AuctionResponse {
   auction: Auction;
 }
 
-export interface AuctionDetail extends Auction {
+export interface AuctionDetail extends Omit<Auction, 'reserve_price'> {
   highest_bid: string;
 }
 
