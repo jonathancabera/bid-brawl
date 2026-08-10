@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth';
 import { AuthRequest } from '../types/auth';
 import { CreateBidBody, BidRow } from '../types/bids';
 import { withAuctionLock, LockBusyError } from '../lock';
+import { getIo, auctionRoom } from '../io';
+import { BidPlacedEvent } from '../types/events';
 
 const router = Router({ mergeParams: true });
 
@@ -28,6 +30,19 @@ router.post('/', requireAuth, async (req, res) => {
 
   try {
     const result = await withAuctionLock(id, () => placeBid(id, user_id, bid));
+
+    if (result.status === 201) {
+      const { bid: created } = result.body as { bid: BidRow };
+      const event: BidPlacedEvent = {
+        auction_id: id,
+        bid_id: created.bid_id,
+        bidder_id: created.bidder_id,
+        amount: created.amount,
+        highest_bid: created.amount,
+      };
+      getIo()?.to(auctionRoom(id)).emit('bid:placed', event);
+    }
+
     return res.status(result.status).json(result.body);
   } catch (err) {
     if (err instanceof LockBusyError) {

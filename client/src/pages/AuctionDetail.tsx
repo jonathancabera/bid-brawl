@@ -5,6 +5,8 @@ import type { AuctionDetail as AuctionDetailData } from '../types/auctions';
 import { ApiError } from '../api/client';
 import AuctionTimeCountdown from '../components/AuctionTimeCountdown';
 import BidForm from '../components/BidForm';
+import { useAuctionSocket } from '../hooks/useAuctionSocket';
+import type { BidPlacedEvent, AuctionClosedEvent } from '../types/events';
 
 const placeholder = '/placeholder.png';
 
@@ -19,6 +21,7 @@ export default function AuctionDetail() {
   const [auction, setAuction] = useState<AuctionDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [closure, setClosure] = useState<AuctionClosedEvent | null>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -33,10 +36,34 @@ export default function AuctionDetail() {
     }
   }, [id]);
 
+  const handleBidPlaced = useCallback((event: BidPlacedEvent) => {
+    setAuction((prev) => {
+      if (!prev || prev.auction_id !== event.auction_id) return prev;
+      if (Number(event.highest_bid) <= Number(prev.highest_bid)) return prev;
+      return { ...prev, highest_bid: event.highest_bid, current_price: event.highest_bid };
+    });
+  }, []);
+
+  const handleClosed = useCallback((event: AuctionClosedEvent) => {
+    setClosure(event);
+    setAuction((prev) =>
+      prev && prev.auction_id === event.auction_id
+        ? { ...prev, status: 'closed', winner_id: event.winner_id }
+        : prev,
+    );
+  }, []);
+
+  const { connected } = useAuctionSocket(id ? Number(id) : null, {
+    onBidPlaced: handleBidPlaced,
+    onClosed: handleClosed,
+    onResync: reload,
+  });
+
   useEffect(() => {
     let ignore = false;
     setLoading(true);
     setError(null);
+    setClosure(null);
     async function load() {
       try {
         const res = await getAuction(Number(id));
@@ -80,6 +107,16 @@ export default function AuctionDetail() {
       <p>
         Ends in: <AuctionTimeCountdown endTime={auction.end_time} />
       </p>
+      {!connected && <p>Reconnecting — prices may be out of date.</p>}
+      {closure && (
+        <p>
+          {closure.winner_id !== null
+            ? `Sold for ${priceFormatter.format(Number(closure.final_price))}`
+            : closure.final_price !== null && !closure.reserve_met
+              ? 'Unsold — reserve not met.'
+              : 'Unsold — no bids.'}
+        </p>
+      )}
       <BidForm auction={auction} onBidPlaced={reload} />
     </div>
   );

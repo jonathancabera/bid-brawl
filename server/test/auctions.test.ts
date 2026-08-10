@@ -67,4 +67,22 @@ describe('auctions', () => {
     const res = await request(app).post('/api/auctions').send(auctionBody());
     expect(res.status).toBe(401);
   });
+
+  it('never exposes the reserve price on the public detail route', async () => {
+    const token = await registerSeller();
+
+    const create = await request(app)
+      .post('/api/auctions')
+      .set('Authorization', `Bearer ${token}`)
+      .send(auctionBody({ reserve_price: 500 }));
+    const id = create.body.auction.auction_id;
+
+    await request(app).post(`/api/auctions/${id}/publish`).set('Authorization', `Bearer ${token}`);
+
+    const detail = await request(app).get(`/api/auctions/${id}`);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body.auction).not.toHaveProperty('reserve_price');
+    expect(JSON.stringify(detail.body)).not.toContain('500');
+  });
 });

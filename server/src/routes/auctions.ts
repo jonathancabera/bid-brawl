@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import { pool } from '../db';
-import { CreateAuctionBody, UpdateAuctionBody, AuctionRow } from '../types/auctions';
+import {
+  CreateAuctionBody,
+  UpdateAuctionBody,
+  AuctionRow,
+  PublicAuctionDetail,
+} from '../types/auctions';
 import { AuctionListItem } from '../types/auctions';
 import { requireAuth } from '../middleware/auth';
 import { AuthRequest } from '../types/auth';
@@ -144,12 +149,10 @@ router.get('/', async (req, res) => {
     if (hasCursor) {
       result = await pool.query<AuctionListItem>(
         `SELECT a.auction_id, a.item_name, a.item_image, a.end_time,
-            COALESCE(MAX(b.amount), a.starting_price) AS highest_bid
+            COALESCE(a.current_price, a.starting_price) AS highest_bid
      FROM auctions a
-     LEFT JOIN bids b ON b.auction_id = a.auction_id
      WHERE a.status = 'active'
        AND (a.end_time, a.auction_id) > ($1, $2)
-     GROUP BY a.auction_id
      ORDER BY a.end_time ASC, a.auction_id ASC
      LIMIT $3`,
         [after_end_time, parsedAfterId, pageSize + 1],
@@ -157,11 +160,9 @@ router.get('/', async (req, res) => {
     } else {
       result = await pool.query<AuctionListItem>(
         `SELECT a.auction_id, a.item_name, a.item_image, a.end_time,
-            COALESCE(MAX(b.amount), a.starting_price) AS highest_bid
+            COALESCE(a.current_price, a.starting_price) AS highest_bid
      FROM auctions a
-     LEFT JOIN bids b ON b.auction_id = a.auction_id
      WHERE a.status = 'active'
-     GROUP BY a.auction_id
      ORDER BY a.end_time ASC, a.auction_id ASC
      LIMIT $1`,
         [pageSize + 1],
@@ -194,14 +195,13 @@ router.get('/:id', async (req, res) => {
   }
 
   try {
-    const result = await pool.query<AuctionRow & { highest_bid: string }>(
-      `SELECT a.*,
-            COALESCE(MAX(b.amount), a.starting_price) AS highest_bid
+    const result = await pool.query<PublicAuctionDetail>(
+      `SELECT a.auction_id, a.seller_id, a.item_name, a.item_description, a.item_image,
+            a.starting_price, a.current_price, a.start_time, a.end_time, a.status, a.winner_id,
+            COALESCE(a.current_price, a.starting_price) AS highest_bid
      FROM auctions a
-     LEFT JOIN bids b ON b.auction_id = a.auction_id
      WHERE a.auction_id = $1
-       AND (a.status <> 'draft')
-     GROUP BY a.auction_id`,
+       AND (a.status <> 'draft')`,
       [id],
     );
 
