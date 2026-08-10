@@ -15,9 +15,12 @@ const priceFormatter = new Intl.NumberFormat('en-US', {
   currency: 'USD',
 });
 
-export default function AuctionDetail() {
+export default function AuctionDetailRoute() {
   const { id } = useParams<{ id: string }>();
+  return <AuctionDetail key={id} id={id} />;
+}
 
+function AuctionDetail({ id }: { id: string | undefined }) {
   const [auction, setAuction] = useState<AuctionDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,9 +64,6 @@ export default function AuctionDetail() {
 
   useEffect(() => {
     let ignore = false;
-    setLoading(true);
-    setError(null);
-    setClosure(null);
     async function load() {
       try {
         const res = await getAuction(Number(id));
