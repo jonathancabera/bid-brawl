@@ -25,6 +25,8 @@ export interface AuctionRow {
   winner_id: number | null;
 }
 
+export type PublicAuctionDetail = Omit<AuctionRow, 'reserve_price'> & { highest_bid: string };
+
 export interface AuctionListItem {
   auction_id: number;
   item_name: string;
