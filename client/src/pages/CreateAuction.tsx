@@ -21,9 +21,9 @@ export default function CreateAuction() {
 
   const locked = createdId !== null;
 
-  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+  const [nowLocal] = useState<string>(() =>
+    new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+  );
 
   async function handleSubmit(e: React.SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
