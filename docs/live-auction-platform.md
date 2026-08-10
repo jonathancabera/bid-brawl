@@ -284,12 +284,12 @@ Explain the issues — don't rewrite the code.
 
 ### Checklist
 
-- [ ] Socket.io server running
-- [ ] Redis adapter attached (for multi-instance scale)
-- [ ] Users auto-join the auction room on page load
-- [ ] Bid submitted → all viewers see price update in under 1 second
-- [ ] `auction_closed` event fires when timer hits zero
-- [ ] Reconnection handled gracefully
+- [x] Socket.io server running — `src/io.ts` singleton, `http.createServer` split in `index.ts` so `app.ts` (and the supertest harness) stay untouched
+- [x] Redis adapter attached (for multi-instance scale) — optional on `REDIS_URL`, mirroring the lock; verified via `pubsub channels`
+- [x] Users auto-join the auction room on page load — `auction:join` from `useAuctionSocket`
+- [x] Bid submitted → all viewers see price update in under 1 second — measured **52ms** end-to-end
+- [x] `auction_closed` event fires when timer hits zero — interval sweeper, single atomic `UPDATE … RETURNING`
+- [x] Reconnection handled gracefully — refetch on every re-connect; implemented, not drop-tested in a browser
 
 ---
 

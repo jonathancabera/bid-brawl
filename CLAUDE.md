@@ -14,4 +14,4 @@ Full spec: docs/live-auction-platform.md
 
 ## Current phase
 
-Phase 1 — auth + schema
+Phase 5 — payments (Stripe). Phases 1–4 complete.
