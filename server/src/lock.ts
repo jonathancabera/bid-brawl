@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { createClient, defineScript, type CommandParser } from 'redis';
+import { attachErrorLogging, isRedisEnabled, redisUrl } from './redis';
 
 const LOCK_TTL_MS = 10_000;
 
@@ -11,8 +12,8 @@ export class LockBusyError extends Error {
 }
 
 function createLockClient() {
-  return createClient({
-    url: process.env.REDIS_URL,
+  const client = createClient({
+    url: redisUrl(),
     scripts: {
       releaseLock: defineScript({
         NUMBER_OF_KEYS: 1,
@@ -32,6 +33,8 @@ end`,
       }),
     },
   });
+
+  return attachErrorLogging(client, 'lock');
 }
 
 type LockClient = ReturnType<typeof createLockClient>;
@@ -41,14 +44,13 @@ let clientPromise: Promise<LockClient> | null = null;
 function getClient(): Promise<LockClient> {
   if (!clientPromise) {
     const client = createLockClient();
-    client.on('error', (err) => console.error('redis error:', err));
     clientPromise = client.connect().then(() => client);
   }
   return clientPromise;
 }
 
 export async function withAuctionLock<T>(auctionId: number, fn: () => Promise<T>): Promise<T> {
-  if (!process.env.REDIS_URL) {
+  if (!isRedisEnabled()) {
     return fn();
   }
 
