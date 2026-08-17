@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createAuction, publishAuction } from '../api/auctions';
+import { getPresignedUploadUrl, uploadFileToS3 } from '../api/uploads';
 import { ApiError } from '../api/client';
 import type { CreateAuctionBody } from '../types/auctions';
 
@@ -16,10 +17,28 @@ export default function CreateAuction() {
   const [reservePrice, setReservePrice] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [createdId, setCreatedId] = useState<number | null>(null);
 
   const locked = createdId !== null;
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setUploadingImage(true);
+    try {
+      const { upload_url, public_url } = await getPresignedUploadUrl(file.type);
+      await uploadFileToS3(upload_url, file);
+      setItemImage(public_url);
+    } catch {
+      setError('image upload failed');
+    } finally {
+      setUploadingImage(false);
+    }
+  }
 
   const [nowLocal] = useState<string>(() =>
     new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
@@ -105,14 +124,18 @@ export default function CreateAuction() {
         </label>
 
         <label className="flex flex-col gap-1">
-          <span>Image URL (optional)</span>
+          <span>Item image (optional)</span>
           <input
-            type="text"
-            value={itemImage}
-            onChange={(e) => setItemImage(e.target.value)}
-            disabled={loading || locked}
+            type="file"
+            accept="image/jpeg,image/png"
+            onChange={handleImageChange}
+            disabled={loading || locked || uploadingImage}
             className="border border-gray-400 rounded px-2 py-1"
           />
+          {uploadingImage && <p>Uploading...</p>}
+          {itemImage && !uploadingImage && (
+            <img src={itemImage} alt="item preview" className="h-24 w-24 object-cover rounded" />
+          )}
         </label>
 
         <label className="flex flex-col gap-1">
@@ -156,7 +179,7 @@ export default function CreateAuction() {
         {locked && <p>Auction created but not published yet. Retry publishing.</p>}
         {error && <p>{error}</p>}
 
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={loading || uploadingImage}>
           {loading ? 'Submitting...' : locked ? 'Retry publish' : 'Create auction'}
         </button>
       </form>
