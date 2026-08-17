@@ -14,4 +14,4 @@ Full spec: docs/live-auction-platform.md
 
 ## Current phase
 
-Phase 5 — payments (Stripe). Phases 1–4 complete.
+Phase 2 cleanup — S3 image upload (deferred item). Phases 1–4 otherwise complete; Phase 5 (Stripe) up next.
