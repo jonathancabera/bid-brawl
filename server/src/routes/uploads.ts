@@ -25,8 +25,11 @@ router.post('/presign', requireAuth, async (req, res) => {
 
   const bucket = process.env.S3_BUCKET;
   const region = process.env.AWS_REGION;
-  if (!bucket || !region) {
-    console.error('presign error: S3_BUCKET/AWS_REGION not configured');
+  const cloudfront_domain = process.env.CLOUDFRONT_DOMAIN;
+  if (!bucket || !region || !cloudfront_domain) {
+    console.error(
+      'presign error: S3_BUCKET/AWS_REGION/CLOUDFRONT_DOMAIN not configured'
+    );
     return res.status(500).json({ error: 'server misconfiguration' });
   }
 
@@ -43,7 +46,7 @@ router.post('/presign', requireAuth, async (req, res) => {
     });
 
     const upload_url = await getSignedUrl(s3, command, { expiresIn: PRESIGN_EXPIRY_SECONDS });
-    const public_url = `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
+    const public_url = `https://${cloudfront_domain}/${key}`;
 
     return res.status(200).json({ upload_url, key, public_url });
   } catch (err) {
