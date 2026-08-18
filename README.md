@@ -28,6 +28,10 @@ one winner per lot even when many bids arrive at the same instant.
   unsold. The figure is never sent to the client.
 - **Keyset (cursor) pagination** for the auction feed — stable under concurrent inserts, no
   row-skipping the way `OFFSET` pagination drifts.
+- **Direct-to-S3 image uploads** — the browser `PUT`s straight to S3 using a 60-second presigned
+  URL, so image bytes never pass through the API. The bucket blocks all public access and is
+  readable only through CloudFront via an origin access control; because keys are UUIDs and objects
+  are never overwritten, cached images can't go stale and no invalidation is ever needed.
 - **Stateless JWT auth** (bcrypt-hashed passwords) and a typed API client with a single error
   boundary.
 - **Integration test harness** — Vitest + supertest running against a Dockerized PostgreSQL and
@@ -42,6 +46,7 @@ one winner per lot even when many bids arrive at the same instant.
 | Real-time  | Socket.io + Redis adapter                 |
 | Database   | PostgreSQL (`pg` pool, raw SQL schema)    |
 | Cache/lock | Redis (optional in local dev — see below) |
+| Storage    | AWS S3 (presigned uploads) + CloudFront   |
 | Testing    | Vitest, supertest, Docker Compose         |
 
 ## Project structure
@@ -65,12 +70,14 @@ assets/   Brand assets (header, features strip, social preview, icon)
   self-heals rather than leaving a stale price on screen.
 - **Auction close** — a background sweep closes expired lots, resolves the winner against the
   reserve, and drops them out of the browse feed.
+- **Image uploads** — `POST /api/uploads/presign` issues a short-lived presigned `PUT` restricted
+  to JPEG/PNG. Objects land under `uploads/{user_id}/{uuid}` and are served back from CloudFront.
 
 ## Roadmap
 
 - Payments (Stripe) and automatic winner charging
 - Background workers (SQS) for auction close and notifications
-- AWS deployment (EC2 / RDS / ElastiCache / S3) + CI/CD
+- AWS deployment (EC2 / RDS / ElastiCache) + CI/CD
 
 ## Constraints & known limitations
 
@@ -84,8 +91,11 @@ This is an in-progress build; a few things are intentionally deferred:
   PostgreSQL transaction alone guarantees correctness (it's the source of truth); the Socket.io
   Redis adapter is skipped and real-time still works on a single instance. Set `REDIS_URL` to
   exercise the full path.
-- **No image uploads.** `item_image` is a plain URL string (S3 upload is deferred).
-- **No payments and no deployment** — runs locally only.
+- **Upload size is unbounded.** The presigned `PUT` pins the content type but not the content
+  length, so a caller holding a valid URL can push an arbitrarily large object. Fixing it properly
+  means a presigned POST with a `content-length-range` condition.
+- **No payments.** The app itself runs locally; the S3 + CloudFront image path is the only piece
+  backed by real AWS infrastructure.
 - **Minimal styling.** The UI is functional, not yet designed.
 - **Validation is manual** (no schema/runtime validation library) and there's no rate limiting —
   fine for local testing, not production-hardened.
@@ -116,6 +126,14 @@ npm install --prefix client
 PORT=3000
 DATABASE_URL=postgresql://user:password@host:5432/auction_db
 JWT_SECRET=change_me
+
+# Image uploads — see "Image uploads (optional)" below
+AWS_REGION=us-east-2
+S3_BUCKET=your-bucket-name
+CLOUDFRONT_DOMAIN=xxxxxxxxxxxxxx.cloudfront.net
+AWS_ACCESS_KEY_ID=change_me
+AWS_SECRET_ACCESS_KEY=change_me
+
 # REDIS_URL=redis://localhost:6379   # optional; enables the lock + multi-instance broadcasts
 ```
 
@@ -138,7 +156,23 @@ docker run -d --rm -p 6379:6379 redis:7-alpine
 # then set REDIS_URL=redis://localhost:6379 in server/.env
 ```
 
-### 5. Run the app
+### 5. (Optional) Image uploads
+
+Everything else runs without this; leave the AWS variables unset and `POST /api/uploads/presign`
+returns a 500 while the rest of the app works normally. To enable uploads you need:
+
+- An **S3 bucket** with Block Public Access fully on and default encryption (SSE-S3).
+- A **CORS rule** on that bucket allowing `PUT` from your frontend origin
+  (`http://localhost:5173` in dev) with `content-type` in `AllowedHeaders` — without it the
+  browser blocks the upload before S3 ever sees it.
+- A **CloudFront distribution** in front of the bucket using an origin access control, which is
+  what makes objects readable. Direct `*.s3.*.amazonaws.com` URLs return 403 by design.
+- An **IAM user** whose policy grants only `s3:PutObject` on `arn:aws:s3:::<bucket>/uploads/*`.
+
+`AWS_REGION` must match the bucket's region — signing for the wrong one fails the presigned `PUT`
+with `SignatureDoesNotMatch`, which doesn't mention the region anywhere.
+
+### 6. Run the app
 
 ```bash
 npm run dev        # runs server (:3000) and client (:5173) together

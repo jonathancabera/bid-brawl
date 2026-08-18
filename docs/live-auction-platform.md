@@ -152,7 +152,7 @@ Point out issues and explain the concept behind each — don't rewrite the code 
 ### Checklist
 
 - [x] Auction CRUD routes working — create, list (cursor pagination), detail (with highest bid), update, soft-delete, and `POST /:id/publish` (draft→active). Design: **biddable-now** (`active` = live immediately, `start_time` is display metadata)
-- [ ] Image upload to S3 working — deferred, pending other decisions
+- [x] Image upload to S3 working — presigned `PUT` (60s, JPEG/PNG only) to `uploads/{user_id}/{uuid}`, served back via CloudFront + OAC. Bucket is private (Block Public Access on), so `public_url` is the CloudFront domain, not the S3 URL. Verified e2e 2026-08-17
 - [x] Auction list page renders — cursor pagination, load-more with in-flight guard + inline error, loading/error/empty states
 - [x] Auction detail page shows current highest bid — id-keyed fetch with cancellation flag, loading/error/not-found states
 - [x] Countdown timer showing time remaining — `AuctionTimeCountdown` (self-correcting interval + cleanup, `Intl.DurationFormat`), reused on list card and detail
@@ -496,8 +496,8 @@ Explain the issues — don't reconfigure it for me.
 - [ ] Nginx serving frontend and proxying API + WebSockets
 - [ ] RDS PostgreSQL accessible from EC2 only
 - [ ] ElastiCache Redis accessible from EC2 only
-- [ ] S3 bucket created with correct permissions
-- [ ] IAM instance role attached (no hardcoded AWS credentials)
+- [x] S3 bucket created with correct permissions — account regional namespace (`{prefix}-{accountId}-{region}-an`), Block Public Access on, ACLs disabled, SSE-S3, versioning + noncurrent-version expiry (30d), CloudFront OAC for reads
+- [ ] IAM instance role attached (no hardcoded AWS credentials) — dev currently uses a static-key IAM user; EC2 should use a role instead
 - [ ] SSL certificate attached via ALB
 - [ ] App accessible at your domain over HTTPS
 - [ ] PM2 running server + all workers with auto-restart

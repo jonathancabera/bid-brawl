@@ -14,4 +14,4 @@ Full spec: docs/live-auction-platform.md
 
 ## Current phase
 
-Phase 2 cleanup — S3 image upload (deferred item). Phases 1–4 otherwise complete; Phase 5 (Stripe) up next.
+Phase 5 — Stripe payments. Phases 1–4 complete, including the deferred S3 image upload; the `payments` table and the `users` Stripe columns exist but are unused.
