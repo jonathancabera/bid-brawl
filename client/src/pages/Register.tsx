@@ -24,7 +24,6 @@ export default function Register() {
     setLoading(true);
     try {
       await register(email.trim(), password, displayName.trim());
-      // A card is required to bid, so send new accounts straight there.
       navigate('/payment');
     } catch (err) {
       if (err instanceof ApiError) {

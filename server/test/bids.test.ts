@@ -10,8 +10,6 @@ async function registerWithoutCard(email: string, display_name: string) {
   return res.body.token as string;
 }
 
-// Bidding requires a card on file. The gate is a plain column check, so tests can
-// satisfy it directly without standing up Stripe.
 async function giveCardOnFile(email: string) {
   await pool.query(
     `UPDATE users

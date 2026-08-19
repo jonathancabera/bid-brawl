@@ -10,9 +10,6 @@ import type { PaymentMethodSummary } from '../types/payments';
 const PLACEHOLDER_KEY = 'pk_test_change_me';
 const publishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined;
 
-// A placeholder key is worse than a missing one: Stripe.js loads, the element
-// fails to authenticate, and the iframe silently tears itself down. Treat the
-// .env.example value as unconfigured so it surfaces as a message instead.
 const isStripeConfigured = Boolean(publishableKey) && publishableKey !== PLACEHOLDER_KEY;
 const stripePromise = isStripeConfigured ? loadStripe(publishableKey as string) : null;
 
@@ -21,7 +18,6 @@ export default function PaymentMethodPage() {
 
   const [summary, setSummary] = useState<PaymentMethodSummary | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
-  // Seeded from isAuthed so the effect never has to setState synchronously.
   const [loading, setLoading] = useState<boolean>(isAuthed);
   const [starting, setStarting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -118,9 +114,6 @@ interface SetupFormProps {
   onCancel: () => void;
 }
 
-// Elements lives in its own component with memoized options so the provider is
-// created once. A fresh `{ clientSecret }` literal on every parent render makes
-// react-stripe-js churn the element group underneath the mounted iframe.
 function SetupForm({ clientSecret, onSaved, onCancel }: SetupFormProps) {
   const options = useMemo(() => ({ clientSecret }), [clientSecret]);
 
@@ -149,8 +142,6 @@ function CardSetupForm({ onSaved, onCancel }: CardSetupFormProps) {
     setSubmitting(true);
     setError(null);
     try {
-      // redirect: 'if_required' keeps the whole flow on this page for cards; a
-      // method that needs a redirect would send the user away and come back.
       const result = await stripe.confirmSetup({ elements, redirect: 'if_required' });
 
       if (result.error) {
@@ -162,7 +153,6 @@ function CardSetupForm({ onSaved, onCancel }: CardSetupFormProps) {
         return;
       }
 
-      // The server re-reads the intent from Stripe before trusting it.
       const saved = await savePaymentMethod(result.setupIntent.id);
       onSaved(saved);
     } catch (err) {
