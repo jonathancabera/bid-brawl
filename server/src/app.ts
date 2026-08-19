@@ -5,6 +5,7 @@ import authRoutes from './routes/auth';
 import auctionRoutes from './routes/auctions';
 import bidRoutes from './routes/bids';
 import uploadRoutes from './routes/uploads';
+import paymentRoutes from './routes/payments';
 
 export const app = express();
 
@@ -15,3 +16,4 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auctions/:auctionId/bids', bidRoutes);
 app.use('/api/auctions', auctionRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/payments', paymentRoutes);

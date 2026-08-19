@@ -1,12 +1,31 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import { app } from '../src/app';
+import { pool } from '../src/db';
 
-async function register(email: string, display_name: string) {
+async function registerWithoutCard(email: string, display_name: string) {
   const res = await request(app)
     .post('/api/auth/register')
     .send({ email, password: 'password123', display_name });
   return res.body.token as string;
+}
+
+// Bidding requires a card on file. The gate is a plain column check, so tests can
+// satisfy it directly without standing up Stripe.
+async function giveCardOnFile(email: string) {
+  await pool.query(
+    `UPDATE users
+        SET stripe_customer_id = 'cus_test', default_payment_method_id = 'pm_test',
+            card_brand = 'visa', card_last4 = '4242'
+      WHERE email = $1`,
+    [email],
+  );
+}
+
+async function register(email: string, display_name: string) {
+  const token = await registerWithoutCard(email, display_name);
+  await giveCardOnFile(email);
+  return token;
 }
 
 function auctionBody(overrides: Record<string, unknown> = {}) {
@@ -53,6 +72,21 @@ describe('bids', () => {
     const { id } = await publishedAuction();
     const res = await request(app).post(`/api/auctions/${id}/bids`).send({ amount: 150 });
     expect(res.status).toBe(401);
+  });
+
+  it('rejects a bid from a user with no payment method on file', async () => {
+    const { id } = await publishedAuction();
+    const bidder = await registerWithoutCard('nocard@example.com', 'No Card');
+
+    const res = await request(app)
+      .post(`/api/auctions/${id}/bids`)
+      .set('Authorization', `Bearer ${bidder}`)
+      .send({ amount: 150 });
+
+    expect(res.status).toBe(402);
+
+    const history = await request(app).get(`/api/auctions/${id}/bids`);
+    expect(history.body.bids).toHaveLength(0);
   });
 
   it('rejects a bid below the starting price', async () => {

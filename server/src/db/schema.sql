@@ -5,7 +5,10 @@ CREATE TABLE users (
     password_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     stripe_account_id TEXT,
-    stripe_customer_id TEXT
+    stripe_customer_id TEXT,
+    default_payment_method_id TEXT,
+    card_brand TEXT,
+    card_last4 TEXT
 );
 
 CREATE TABLE auctions (
