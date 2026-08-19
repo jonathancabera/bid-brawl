@@ -10,6 +10,9 @@ export default function Layout() {
         <Link to="/create" className="ml-auto text-sm">
           Create auction
         </Link>
+        <Link to="/payment" className="text-sm">
+          Payment method
+        </Link>
       </nav>
       <main className="px-6 py-6">
         <Outlet />

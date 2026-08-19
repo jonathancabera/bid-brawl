@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { placeBid } from '../api/bids';
+import { getPaymentMethod } from '../api/payments';
 import { getToken } from '../api/auth';
 import { ApiError } from '../api/client';
 import type { AuctionDetail } from '../types/auctions';
@@ -19,8 +20,26 @@ export default function BidForm({ auction, onBidPlaced }: BidFormProps) {
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  // null = not known yet; the server's 402 is the authoritative check either way.
+  const [hasCard, setHasCard] = useState<boolean | null>(null);
 
   const isAuthed = getToken() !== null;
+
+  useEffect(() => {
+    if (!isAuthed) return;
+
+    let ignore = false;
+    getPaymentMethod()
+      .then((res) => {
+        if (!ignore) setHasCard(res.has_payment_method);
+      })
+      .catch(() => {
+        if (!ignore) setHasCard(null);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [isAuthed]);
   const hasBids = auction.current_price !== null;
   const minBid = hasBids ? Number(auction.current_price) : Number(auction.starting_price);
   const ended = new Date(auction.end_time) <= new Date();
@@ -68,6 +87,14 @@ export default function BidForm({ auction, onBidPlaced }: BidFormProps) {
     return (
       <p>
         <Link to="/login">Log in</Link> to place a bid.
+      </p>
+    );
+  }
+
+  if (hasCard === false) {
+    return (
+      <p>
+        <Link to="/payment">Add a payment method</Link> to place a bid.
       </p>
     );
   }
