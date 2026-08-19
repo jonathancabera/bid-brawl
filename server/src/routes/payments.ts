@@ -61,8 +61,6 @@ router.post('/setup-intent', requireAuth, async (req, res) => {
         metadata: { user_id: String(user_id) },
       });
 
-      // Two concurrent calls can both create a customer; the first to land keeps
-      // it. The loser's customer is orphaned in Stripe but never referenced.
       const claimed = await pool.query<{ stripe_customer_id: string }>(
         `UPDATE users SET stripe_customer_id = $1
           WHERE user_id = $2 AND stripe_customer_id IS NULL
@@ -107,8 +105,6 @@ router.post('/payment-method', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'no billing profile for this user' });
     }
 
-    // Never trust the client's word that a card was saved — read the intent back
-    // from Stripe and confirm it both succeeded and belongs to this user.
     const intent = await stripe.setupIntents.retrieve(setup_intent_id, {
       expand: ['payment_method'],
     });
@@ -127,7 +123,6 @@ router.post('/payment-method', requireAuth, async (req, res) => {
       return res.status(409).json({ error: 'setup intent has no payment method attached' });
     }
 
-    // Makes it the customer's default so the Phase 5 charge can run off_session.
     await stripe.customers.update(billing.stripe_customer_id, {
       invoice_settings: { default_payment_method: method.id },
     });
