@@ -18,7 +18,7 @@ export default function Login() {
 
     try {
       await login(email, password);
-      navigate('/create');
+      navigate('/');
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
