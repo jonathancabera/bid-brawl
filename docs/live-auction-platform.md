@@ -156,6 +156,7 @@ Point out issues and explain the concept behind each — don't rewrite the code 
 - [x] Auction list page renders — cursor pagination, load-more with in-flight guard + inline error, loading/error/empty states
 - [x] Auction detail page shows current highest bid — id-keyed fetch with cancellation flag, loading/error/not-found states
 - [x] Countdown timer showing time remaining — `AuctionTimeCountdown` (self-correcting interval + cleanup, `Intl.DurationFormat`), reused on list card and detail
+- [x] Landing + auth pages — `/` renders the landing page (signup form inline) when logged out and the auction list when signed in; browsing stays public at `/auctions`. Register page added (accounts previously needed curl), signup form shared via `RegisterForm`, and the nav is auth-aware with log out
 - [x] CreateAuction form — login flow + create→publish with retry-publish guard, `datetime-local`→ISO, thin client validation. First authed client write. Verified end-to-end.
 
 ---
@@ -353,10 +354,11 @@ Explain the issues — don't rewrite the code.
 
 ### Checklist
 
-- [ ] Users can save a card via Stripe Elements
+- [x] Users can save a card via Stripe Elements — SetupIntent (`usage: off_session`) + `PaymentElement`, confirmed with `redirect: 'if_required'`. Server re-reads the intent from Stripe and checks `status` + customer ownership before persisting `default_payment_method_id`/`card_brand`/`card_last4`; the client's claim is never trusted. Verified e2e 2026-08-19
+- [x] **Card on file required to bid** (not in the original spec) — `POST /bids` returns **402** when `default_payment_method_id` is null, so a winner can always be charged. Deliberately a local column check, not a Stripe call: the bid path already carries a Redis lock + `FOR UPDATE`, and a network round-trip there would be the worst place in the codebase for one
 - [ ] Winner is charged automatically when auction closes
 - [ ] Stripe webhook receives `payment_intent.succeeded`
-- [ ] Payments table records the transaction
+- [ ] Payments table records the transaction — design settled (**transactional outbox**): the closing `UPDATE` writes a `pending` row in the same statement via a CTE, and a separate claim step charges it. Option of charging inline in the sweep was rejected — a crash after COMMIT leaves the auction closed with no record that money is owed, and nothing to retry from
 - [ ] Seller payout initiated after successful payment
 - [ ] Failed payment triggers notification
 - [ ] Webhook handler is idempotent
