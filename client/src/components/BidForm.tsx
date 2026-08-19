@@ -20,7 +20,6 @@ export default function BidForm({ auction, onBidPlaced }: BidFormProps) {
   const [amount, setAmount] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  // null = not known yet; the server's 402 is the authoritative check either way.
   const [hasCard, setHasCard] = useState<boolean | null>(null);
 
   const isAuthed = getToken() !== null;

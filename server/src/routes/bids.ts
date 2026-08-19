@@ -29,8 +29,6 @@ router.post('/', requireAuth, async (req, res) => {
   const { user_id } = (req as AuthRequest).user;
 
   try {
-    // Card on file is required to bid, so a winner can always be charged. This is
-    // a local column check on purpose — the bid path never calls Stripe.
     const billing = await pool.query<{ default_payment_method_id: string | null }>(
       `SELECT default_payment_method_id FROM users WHERE user_id = $1`,
       [user_id],
